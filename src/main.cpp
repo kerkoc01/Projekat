@@ -57,7 +57,7 @@ struct ProgramState {
     Camera camera;
     bool CameraMouseMovementUpdateEnabled = true;
     glm::vec3 Position = glm::vec3(0.0f);
-    float Scale = 0.01f;
+    float Scale = 1.0f;
     PointLight pointLight;
     ProgramState()
             : camera(glm::vec3(0.0f, 0.0f, 3.0f)) {}
@@ -101,6 +101,20 @@ ProgramState *programState;
 
 void DrawImGui(ProgramState *programState);
 
+unsigned int loadTexture(char const * path);
+
+void bindPointLight(Shader &shader, PointLight pointLight);
+
+void bindCameraPosition(Shader &shader, glm::vec3 position);
+
+void bindShininess(Shader &shader, float value);
+
+void setShaderViewMatrix(Shader &shader, glm::mat4 view);
+
+void setShaderProjectionMatrix(Shader &shader, glm::mat4 projection);
+
+void setShaderModelMatrix(Shader &shader, glm::mat4 model);
+
 int main() {
     // glfw: initialize and configure
     // ------------------------------
@@ -137,7 +151,8 @@ int main() {
     }
 
     // tell stb_image.h to flip loaded texture's on the y-axis (before loading model).
-    stbi_set_flip_vertically_on_load(true);
+    stbi_set_flip_vertically_on_load(false);
+
 
     programState = new ProgramState;
     programState->LoadFromFile("resources/program_state.txt");
@@ -157,28 +172,57 @@ int main() {
 
     // configure global opengl state
     // -----------------------------
-    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_DEPTH_TEST);  //    FACE CULLING VVV
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
 
     // build and compile shaders
     // -------------------------
-    Shader ourShader("resources/shaders/2.model_lighting.vs", "resources/shaders/2.model_lighting.fs");
+    Shader shader("resources/shaders/2.model_lighting.vs", "resources/shaders/2.model_lighting.fs");
 
     // load models
     // -----------
-    Model ourModel("resources/objects/goalpost/10502_Football_Goalpost_v1_L3.obj");
-    ourModel.SetShaderTextureNamePrefix("material.");
+    Model goalModel("resources/objects/goalpost/10502_Football_Goalpost_v1_L3.obj");
+    goalModel.SetShaderTextureNamePrefix("material.");
 
     PointLight& pointLight = programState->pointLight;
     pointLight.position = glm::vec3(1.0f, 4.0, 0.0);
-    pointLight.ambient = glm::vec3(1.0, 1.0, 1.0);
-    pointLight.diffuse = glm::vec3(0.0, 0.0, 0.0);
-    pointLight.specular = glm::vec3(0.0, 0.0, 0.0);
+    pointLight.ambient = glm::vec3(2.0, 2.0, 2.0);
+    pointLight.diffuse = glm::vec3(0.8, 0.8, 0.8);
+    pointLight.specular = glm::vec3(0.1, 0.1, 0.1);
 
     pointLight.constant = 1.0f;
     pointLight.linear = 0.09f;
     pointLight.quadratic = 0.032f;
 
 
+    float planeVertices[] = {
+            //position                       normals                       texture
+            1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f,
+            -1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f,-1.0f, 1.0f,
+            -1.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f,-1.0f, -1.0f,
+
+            1.0f, 0.0f, 1.0f,0.0f, 1.0f, 0.0f, 1.0f, 1.0f,
+            -1.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f,-1.0f, -1.0f,
+            1.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f,1.0f, -1.0f
+    };
+
+    unsigned int planeVAO, planeVBO;
+    glGenVertexArrays(1, &planeVAO);
+    glGenBuffers(1, &planeVBO);
+    glBindVertexArray(planeVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, planeVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(planeVertices), &planeVertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(2);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+    glBindVertexArray(0);
+
+    unsigned int grassTexture = loadTexture(FileSystem::getPath("resources/textures/grass.png").c_str());
+    unsigned int planeTexture = loadTexture(FileSystem::getPath("resources/textures/plane.jpeg").c_str());
 
     // draw in wireframe
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -202,33 +246,42 @@ int main() {
         glClearColor(programState->clearColor.r, programState->clearColor.g, programState->clearColor.b, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // don't forget to enable shader before setting uniforms
-        ourShader.use();
+
+        shader.use();
         pointLight.position = glm::vec3(4.0 * cos(currentFrame), 4.0f, 4.0 * sin(currentFrame));
-        ourShader.setVec3("pointLight.position", pointLight.position);
-        ourShader.setVec3("pointLight.ambient", pointLight.ambient);
-        ourShader.setVec3("pointLight.diffuse", pointLight.diffuse);
-        ourShader.setVec3("pointLight.specular", pointLight.specular);
-        ourShader.setFloat("pointLight.constant", pointLight.constant);
-        ourShader.setFloat("pointLight.linear", pointLight.linear);
-        ourShader.setFloat("pointLight.quadratic", pointLight.quadratic);
-        ourShader.setVec3("viewPosition", programState->camera.Position);
-        ourShader.setFloat("material.shininess", 32.0f);
+        bindPointLight(shader, pointLight);
+        bindCameraPosition(shader, programState->camera.Position);
+        bindShininess(shader, 32.0f);
+
+
         // view/projection transformations
         glm::mat4 projection = glm::perspective(glm::radians(programState->camera.Zoom),
                                                 (float) SCR_WIDTH / (float) SCR_HEIGHT, 0.1f, 100.0f);
         glm::mat4 view = programState->camera.GetViewMatrix();
-        ourShader.setMat4("projection", projection);
-        ourShader.setMat4("view", view);
+        setShaderProjectionMatrix(shader, projection);
+        setShaderViewMatrix(shader, view);
 
-        // render the loaded model
+        // render loaded models
+
+        //goal
         glm::mat4 model = glm::mat4(1.0f);
         model = glm::translate(model,
-                               programState->Position); // translate it down so it's at the center of the scene
-        model = glm::scale(model, glm::vec3(programState->Scale));    // it's a bit too big for our scene, so scale it down
+                               glm::vec3(0.0f)); // translate it down so it's at the center of the scene
+        model = glm::scale(model, glm::vec3(0.01f));    // it's a bit too big for our scene, so scale it down
         model = glm::rotate(model, glm::radians(-90.0f), glm::vec3(1, 0, 0));
-        ourShader.setMat4("model", model);
-        ourModel.Draw(ourShader);
+        setShaderModelMatrix(shader, model);
+        goalModel.Draw(shader);
+
+
+        //plane
+        glDisable(GL_CULL_FACE);
+        glBindVertexArray(planeVAO);
+        glBindTexture(GL_TEXTURE_2D, planeTexture);
+        model = glm::mat4(1.0f);
+        model = glm::scale(model, glm::vec3(20.0f));
+        setShaderModelMatrix(shader, model);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+        glEnable(GL_CULL_FACE);
 
         if (programState->ImGuiEnabled)
             DrawImGui(programState);
@@ -252,8 +305,6 @@ int main() {
     return 0;
 }
 
-// process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
-// ---------------------------------------------------------------------------------------------------------
 void processInput(GLFWwindow *window) {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
@@ -268,16 +319,12 @@ void processInput(GLFWwindow *window) {
         programState->camera.ProcessKeyboard(RIGHT, deltaTime);
 }
 
-// glfw: whenever the window size changed (by OS or user resize) this callback function executes
-// ---------------------------------------------------------------------------------------------
 void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
     // make sure the viewport matches the new window dimensions; note that width and
     // height will be significantly larger than specified on retina displays.
     glViewport(0, 0, width, height);
 }
 
-// glfw: whenever the mouse moves, this callback is called
-// -------------------------------------------------------
 void mouse_callback(GLFWwindow *window, double xpos, double ypos) {
     if (firstMouse) {
         lastX = xpos;
@@ -295,8 +342,6 @@ void mouse_callback(GLFWwindow *window, double xpos, double ypos) {
         programState->camera.ProcessMouseMovement(xoffset, yoffset);
 }
 
-// glfw: whenever the mouse scroll wheel scrolls, this callback is called
-// ----------------------------------------------------------------------
 void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
     programState->camera.ProcessMouseScroll(yoffset);
 }
@@ -346,4 +391,71 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
             glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
         }
     }
+}
+
+unsigned int loadTexture(char const * path)
+{
+    unsigned int textureID;
+    glGenTextures(1, &textureID);
+
+    int width, height, nrComponents;
+    unsigned char *data = stbi_load(path, &width, &height, &nrComponents, 0);
+    if (data)
+    {
+        GLenum format;
+        if (nrComponents == 1)
+            format = GL_RED;
+        else if (nrComponents == 3)
+            format = GL_RGB;
+        else if (nrComponents == 4)
+            format = GL_RGBA;
+
+        glBindTexture(GL_TEXTURE_2D, textureID);
+        glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, format == GL_RGBA ? GL_CLAMP_TO_EDGE : GL_REPEAT); // for this tutorial: use GL_CLAMP_TO_EDGE to prevent semi-transparent borders. Due to interpolation it takes texels from next repeat
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, format == GL_RGBA ? GL_CLAMP_TO_EDGE : GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+        stbi_image_free(data);
+    }
+    else
+    {
+        std::cout << "Texture failed to load at path: " << path << std::endl;
+        stbi_image_free(data);
+    }
+
+    return textureID;
+}
+
+void bindPointLight(Shader &shader, PointLight pointLight){
+    shader.setVec3("pointLight.position", pointLight.position);
+    shader.setVec3("pointLight.ambient", pointLight.ambient);
+    shader.setVec3("pointLight.diffuse", pointLight.diffuse);
+    shader.setVec3("pointLight.specular", pointLight.specular);
+    shader.setFloat("pointLight.constant", pointLight.constant);
+    shader.setFloat("pointLight.linear", pointLight.linear);
+    shader.setFloat("pointLight.quadratic", pointLight.quadratic);
+}
+
+void bindCameraPosition(Shader &shader, glm::vec3 position){
+    shader.setVec3("viewPosition", position);
+}
+
+void bindShininess(Shader &shader, float value){
+    shader.setFloat("material.shininess", value);
+}
+
+void setShaderViewMatrix(Shader &shader, glm::mat4 view){
+    shader.setMat4("view", view);
+}
+
+void setShaderProjectionMatrix(Shader &shader, glm::mat4 projection){
+    shader.setMat4("projection", projection);
+}
+
+void setShaderModelMatrix(Shader &shader, glm::mat4 model){
+    shader.setMat4("model", model);
 }
