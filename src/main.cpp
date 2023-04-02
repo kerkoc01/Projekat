@@ -172,9 +172,8 @@ int main() {
 
     // configure global opengl state
     // -----------------------------
-    glEnable(GL_DEPTH_TEST);  //    FACE CULLING VVV
+    glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
-    glCullFace(GL_BACK);
 
     // build and compile shaders
     // -------------------------
@@ -184,6 +183,9 @@ int main() {
     // -----------
     Model goalModel("resources/objects/goalpost/10502_Football_Goalpost_v1_L3.obj");
     goalModel.SetShaderTextureNamePrefix("material.");
+
+    Model projectorModel("resources/objects/projector/projector_mast.obj");
+    projectorModel.SetShaderTextureNamePrefix("material.");
 
     PointLight& pointLight = programState->pointLight;
     pointLight.position = glm::vec3(1.0f, 4.0, 0.0);
@@ -248,7 +250,7 @@ int main() {
 
 
         shader.use();
-        pointLight.position = glm::vec3(4.0 * cos(currentFrame), 4.0f, 4.0 * sin(currentFrame));
+        pointLight.position = glm::vec3(20.0, 20.0, 20.0);
         bindPointLight(shader, pointLight);
         bindCameraPosition(shader, programState->camera.Position);
         bindShininess(shader, 32.0f);
@@ -264,24 +266,32 @@ int main() {
         // render loaded models
 
         //goal
+        glCullFace(GL_BACK);
         glm::mat4 model = glm::mat4(1.0f);
         model = glm::translate(model,
-                               glm::vec3(0.0f)); // translate it down so it's at the center of the scene
-        model = glm::scale(model, glm::vec3(0.01f));    // it's a bit too big for our scene, so scale it down
+                               glm::vec3(0.0f));
+        model = glm::scale(model, glm::vec3(0.01f));
         model = glm::rotate(model, glm::radians(-90.0f), glm::vec3(1, 0, 0));
         setShaderModelMatrix(shader, model);
         goalModel.Draw(shader);
 
+        //projector
+        model = glm::mat4(1.0f);
+        model = glm::translate(model,
+                               glm::vec3(20.0f, 0.0f, 20.0f));
+        model = glm::scale(model, glm::vec3(1.5f));
+        model = glm::rotate(model, glm::radians(45.0f), glm::vec3(0, 1, 0));
+        setShaderModelMatrix(shader, model);
+        projectorModel.Draw(shader);
 
         //plane
-        glDisable(GL_CULL_FACE);
+        glCullFace(GL_FRONT);
         glBindVertexArray(planeVAO);
         glBindTexture(GL_TEXTURE_2D, planeTexture);
         model = glm::mat4(1.0f);
-        model = glm::scale(model, glm::vec3(20.0f));
+        model = glm::scale(model, glm::vec3(50.0f));
         setShaderModelMatrix(shader, model);
         glDrawArrays(GL_TRIANGLES, 0, 6);
-        glEnable(GL_CULL_FACE);
 
         if (programState->ImGuiEnabled)
             DrawImGui(programState);
