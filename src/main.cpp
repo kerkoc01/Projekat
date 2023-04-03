@@ -159,7 +159,7 @@ int main() {
     if (programState->ImGuiEnabled) {
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
     }
-    // Init Imgui
+    // Init ImGui
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO &io = ImGui::GetIO();
@@ -177,7 +177,8 @@ int main() {
 
     // build and compile shaders
     // -------------------------
-    Shader shader("resources/shaders/2.model_lighting.vs", "resources/shaders/2.model_lighting.fs");
+    Shader mainShader("resources/shaders/mainShader.vs", "resources/shaders/mainShader.fs");
+    Shader grassShader("resources/shaders/grassShader.vs", "resources/shaders/grassShader.fs");
 
     // load models
     // -----------
@@ -198,6 +199,8 @@ int main() {
     pointLight.quadratic = 0.032f;
 
 
+    //initializing vertices
+
     float planeVertices[] = {
             //position                       normals                       texture
             1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f,
@@ -208,6 +211,21 @@ int main() {
             -1.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f,-1.0f, -1.0f,
             1.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f,1.0f, -1.0f
     };
+
+    float grassVertices[] = {
+
+            //position                          texture
+            0.0f,  0.5f,  0.0f,  0.0f,  0.0f,
+            0.0f, -0.5f,  0.0f,  0.0f,  1.0f,
+            1.0f, -0.5f,  0.0f,  1.0f,  1.0f,
+
+            0.0f,  0.5f,  0.0f,  0.0f,  0.0f,
+            1.0f, -0.5f,  0.0f,  1.0f,  1.0f,
+            1.0f,  0.5f,  0.0f,  1.0f,  0.0f
+
+    };
+
+    //making buffers
 
     unsigned int planeVAO, planeVBO;
     glGenVertexArrays(1, &planeVAO);
@@ -223,11 +241,28 @@ int main() {
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
     glBindVertexArray(0);
 
+
+    unsigned int grassVAO, grassVBO;
+    glGenVertexArrays(1, &grassVAO);
+    glGenBuffers(1, &grassVBO);
+    glBindVertexArray(grassVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, grassVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(grassVertices), &grassVertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+    glBindVertexArray(0);
+
+
+    //loading textures
+
     unsigned int grassTexture = loadTexture(FileSystem::getPath("resources/textures/grass.png").c_str());
     unsigned int planeTexture = loadTexture(FileSystem::getPath("resources/textures/plane.jpeg").c_str());
 
-    // draw in wireframe
-    //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
+    grassShader.use();
+    grassShader.setInt("texture1", 0);
 
     // render loop
     // -----------
@@ -249,40 +284,37 @@ int main() {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 
-        shader.use();
+        mainShader.use();
         pointLight.position = glm::vec3(20.0, 20.0, 20.0);
-        bindPointLight(shader, pointLight);
-        bindCameraPosition(shader, programState->camera.Position);
-        bindShininess(shader, 32.0f);
+        bindPointLight(mainShader, pointLight);
+        bindCameraPosition(mainShader, programState->camera.Position);
+        bindShininess(mainShader, 32.0f);
 
 
         // view/projection transformations
-        glm::mat4 projection = glm::perspective(glm::radians(programState->camera.Zoom),
-                                                (float) SCR_WIDTH / (float) SCR_HEIGHT, 0.1f, 100.0f);
+        glm::mat4 projection = glm::perspective(glm::radians(programState->camera.Zoom),(float) SCR_WIDTH / (float) SCR_HEIGHT, 0.1f, 100.0f);
         glm::mat4 view = programState->camera.GetViewMatrix();
-        setShaderProjectionMatrix(shader, projection);
-        setShaderViewMatrix(shader, view);
+        setShaderProjectionMatrix(mainShader, projection);
+        setShaderViewMatrix(mainShader, view);
 
         // render loaded models
 
         //goal
         glCullFace(GL_BACK);
         glm::mat4 model = glm::mat4(1.0f);
-        model = glm::translate(model,
-                               glm::vec3(0.0f));
+        model = glm::translate(model,glm::vec3(0.0f));
         model = glm::scale(model, glm::vec3(0.01f));
         model = glm::rotate(model, glm::radians(-90.0f), glm::vec3(1, 0, 0));
-        setShaderModelMatrix(shader, model);
-        goalModel.Draw(shader);
+        setShaderModelMatrix(mainShader, model);
+        goalModel.Draw(mainShader);
 
         //projector
         model = glm::mat4(1.0f);
-        model = glm::translate(model,
-                               glm::vec3(20.0f, 0.0f, 20.0f));
+        model = glm::translate(model,glm::vec3(20.0f, 0.0f, 20.0f));
         model = glm::scale(model, glm::vec3(1.5f));
         model = glm::rotate(model, glm::radians(45.0f), glm::vec3(0, 1, 0));
-        setShaderModelMatrix(shader, model);
-        projectorModel.Draw(shader);
+        setShaderModelMatrix(mainShader, model);
+        projectorModel.Draw(mainShader);
 
         //plane
         glCullFace(GL_FRONT);
@@ -290,13 +322,24 @@ int main() {
         glBindTexture(GL_TEXTURE_2D, planeTexture);
         model = glm::mat4(1.0f);
         model = glm::scale(model, glm::vec3(50.0f));
-        setShaderModelMatrix(shader, model);
+        setShaderModelMatrix(mainShader, model);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+
+        //grass
+        grassShader.use();
+        glBindVertexArray(grassVAO);
+        glBindTexture(GL_TEXTURE_2D, grassTexture);
+        projection = glm::perspective(glm::radians(programState->camera.Zoom),(float) SCR_WIDTH / (float) SCR_HEIGHT, 0.1f, 100.0f);
+        view = programState->camera.GetViewMatrix();
+        setShaderProjectionMatrix(grassShader, projection);
+        setShaderViewMatrix(grassShader, view);
+        model = glm::mat4(1.0f);
+        model = glm::scale(model, glm::vec3(50.0f));
+        setShaderModelMatrix(grassShader, model);
         glDrawArrays(GL_TRIANGLES, 0, 6);
 
         if (programState->ImGuiEnabled)
             DrawImGui(programState);
-
-
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
@@ -311,6 +354,10 @@ int main() {
     ImGui::DestroyContext();
     // glfw: terminate, clearing all previously allocated GLFW resources.
     // ------------------------------------------------------------------
+    glDeleteVertexArrays(1, &grassVAO);
+    glDeleteVertexArrays(1, &planeVAO);
+    glDeleteBuffers(1, &grassVAO);
+    glDeleteBuffers(1, &planeVAO);
     glfwTerminate();
     return 0;
 }
