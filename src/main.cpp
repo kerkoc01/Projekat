@@ -179,6 +179,7 @@ int main() {
     // -------------------------
     Shader mainShader("resources/shaders/mainShader.vs", "resources/shaders/mainShader.fs");
     Shader grassShader("resources/shaders/grassShader.vs", "resources/shaders/grassShader.fs");
+    Shader planeShader("resources/shaders/planeShader.vs", "resources/shaders/planeShader.fs");
 
     // load models
     // -----------
@@ -257,12 +258,22 @@ int main() {
 
     //loading textures
 
-    unsigned int grassTexture = loadTexture(FileSystem::getPath("resources/textures/grass.png").c_str());
-    unsigned int planeTexture = loadTexture(FileSystem::getPath("resources/textures/plane.jpeg").c_str());
+    unsigned int grassTexture = loadTexture(FileSystem::getPath("resources/textures/grass_texture.png").c_str()); // Downloaded texture from https://github.com/Vulpinii/grass-tutorial_codebase/blob/master/assets/textures/grass_texture.png
+    unsigned int planeTexture = loadTexture(FileSystem::getPath("resources/textures/plane_texture.jpg").c_str());
 
 
     grassShader.use();
     grassShader.setInt("texture1", 0);
+
+    planeShader.use();
+    planeShader.setInt("texture1", 0);
+
+    //calculating grass position
+
+    vector<glm::vec3> grassPosition;
+    for(int i = 0;i < 100;i++)
+        for(int j = 0;j < 100;j++)
+            grassPosition.push_back(glm::vec3(i - 50.0f, 0.3f, j - 50.0f));
 
     // render loop
     // -----------
@@ -311,21 +322,27 @@ int main() {
         //projector
         model = glm::mat4(1.0f);
         model = glm::translate(model,glm::vec3(20.0f, 0.0f, 20.0f));
-        model = glm::scale(model, glm::vec3(1.5f));
         model = glm::rotate(model, glm::radians(45.0f), glm::vec3(0, 1, 0));
+        model = glm::scale(model, glm::vec3(1.5f));
         setShaderModelMatrix(mainShader, model);
         projectorModel.Draw(mainShader);
 
         //plane
+        planeShader.use();
         glCullFace(GL_FRONT);
         glBindVertexArray(planeVAO);
         glBindTexture(GL_TEXTURE_2D, planeTexture);
+        projection = glm::perspective(glm::radians(programState->camera.Zoom),(float) SCR_WIDTH / (float) SCR_HEIGHT, 0.1f, 100.0f);
+        view = programState->camera.GetViewMatrix();
+        setShaderProjectionMatrix(planeShader, projection);
+        setShaderViewMatrix(planeShader, view);
         model = glm::mat4(1.0f);
-        model = glm::scale(model, glm::vec3(50.0f));
-        setShaderModelMatrix(mainShader, model);
+        model = glm::scale(model, glm::vec3(21.0f));
+        setShaderModelMatrix(planeShader, model);
         glDrawArrays(GL_TRIANGLES, 0, 6);
 
         //grass
+        glDisable(GL_CULL_FACE);
         grassShader.use();
         glBindVertexArray(grassVAO);
         glBindTexture(GL_TEXTURE_2D, grassTexture);
@@ -333,10 +350,17 @@ int main() {
         view = programState->camera.GetViewMatrix();
         setShaderProjectionMatrix(grassShader, projection);
         setShaderViewMatrix(grassShader, view);
-        model = glm::mat4(1.0f);
-        model = glm::scale(model, glm::vec3(50.0f));
-        setShaderModelMatrix(grassShader, model);
-        glDrawArrays(GL_TRIANGLES, 0, 6);
+        for(auto i : grassPosition){
+            model = glm::mat4(1.0f);
+            model = glm::translate(model, i);
+            for(int j = 0;j < 3;j++) {
+                model = glm::rotate(model, glm::radians(120.0f), glm::vec3(0, 1, 0));
+                model = glm::scale(model, glm::vec3(1.6f, 1.0f, 1.6f));
+                setShaderModelMatrix(grassShader, model);
+                glDrawArrays(GL_TRIANGLES, 0, 6);
+            }
+        }
+        glEnable(GL_CULL_FACE);
 
         if (programState->ImGuiEnabled)
             DrawImGui(programState);
