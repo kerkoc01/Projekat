@@ -51,6 +51,29 @@ struct PointLight {
     float quadratic;
 };
 
+struct SpotLight{
+    glm::vec3 position;
+    glm::vec3 direction;
+    float cutOff;
+    float outerCutOff;
+
+    float constant;
+    float linear;
+    float quadratic;
+
+    glm::vec3 ambient;
+    glm::vec3 diffuse;
+    glm::vec3 specular;
+};
+
+struct DirLight{
+    glm::vec3 direction;
+
+    glm::vec3 ambient;
+    glm::vec3 diffuse;
+    glm::vec3 specular;
+};
+
 struct ProgramState {
     glm::vec3 clearColor = glm::vec3(0);
     bool ImGuiEnabled = false;
@@ -114,6 +137,14 @@ void setShaderViewMatrix(Shader &shader, glm::mat4 view);
 void setShaderProjectionMatrix(Shader &shader, glm::mat4 projection);
 
 void setShaderModelMatrix(Shader &shader, glm::mat4 model);
+
+void enableShaderDiffuseComponent(Shader &shader);
+
+void enableShaderSpecularComponent(Shader &shader);
+
+void bindSpotLight(Shader &shader, SpotLight spotLight);
+
+void bindDirLight(Shader &shader, DirLight dirLight);
 
 int main() {
     // glfw: initialize and configure
@@ -194,10 +225,27 @@ int main() {
     pointLight.ambient = glm::vec3(2.0, 2.0, 2.0);
     pointLight.diffuse = glm::vec3(0.8, 0.8, 0.8);
     pointLight.specular = glm::vec3(0.1, 0.1, 0.1);
-
     pointLight.constant = 1.0f;
     pointLight.linear = 0.09f;
     pointLight.quadratic = 0.032f;
+
+    DirLight dirLight;
+    dirLight.direction = glm::vec3(-0.2f, -1.0f, -0.3f);
+    dirLight.ambient = glm::vec3(0.2f, 0.2f, 0.2f);
+    dirLight.diffuse = glm::vec3(0.5f, 0.5f, 0.5f);
+    dirLight.specular = glm::vec3(1.0f, 1.0f, 1.0f);
+
+    SpotLight spotLight;
+    spotLight.position = glm::vec3(20.0f, 50.0f, 20.0f);
+    spotLight.direction = glm::normalize(glm::vec3(1.0f, 0.0f, 1.0f));
+    spotLight.cutOff = glm::cos(glm::radians(12.5f));
+    spotLight.outerCutOff = glm::cos(glm::radians(17.5f));
+    spotLight.ambient = glm::vec3(0.1, 0.1, 0.1);
+    spotLight.diffuse = glm::vec3(0.8, 0.8, 0.8);
+    spotLight.specular = glm::vec3(1.0, 1.0, 1.0);
+    spotLight.constant = 1.0f;
+    spotLight.linear = 0.09f;
+    spotLight.quadratic = 0.032f;
 
 
     //initializing vertices
@@ -215,14 +263,14 @@ int main() {
 
     float grassVertices[] = {
 
-            //position                          texture
-            0.0f,  0.5f,  0.0f,  0.0f,  0.0f,
-            0.0f, -0.5f,  0.0f,  0.0f,  1.0f,
-            1.0f, -0.5f,  0.0f,  1.0f,  1.0f,
+            //position                          normals                 texture
+            0.0f,  0.5f,  0.0f, sqrt(2.0f), 0, sqrt(2.0f), 0.0f,  0.0f,
+            0.0f, -0.5f,  0.0f, sqrt(2.0f), 0, sqrt(2.0f), 0.0f,  1.0f,
+            1.0f, -0.5f,  0.0f,  sqrt(2.0f), 0, sqrt(2.0f),1.0f,  1.0f,
 
-            0.0f,  0.5f,  0.0f,  0.0f,  0.0f,
-            1.0f, -0.5f,  0.0f,  1.0f,  1.0f,
-            1.0f,  0.5f,  0.0f,  1.0f,  0.0f
+            0.0f,  0.5f,  0.0f,  sqrt(2.0f), 0, sqrt(2.0f),0.0f,  0.0f,
+            1.0f, -0.5f,  0.0f,  sqrt(2.0f), 0, sqrt(2.0f),1.0f,  1.0f,
+            1.0f,  0.5f,  0.0f,  sqrt(2.0f), 0, sqrt(2.0f),1.0f,  0.0f
 
     };
 
@@ -250,20 +298,24 @@ int main() {
     glBindBuffer(GL_ARRAY_BUFFER, grassVBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(grassVertices), &grassVertices, GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(2);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
     glBindVertexArray(0);
 
 
     //loading textures
 
-    unsigned int grassTexture = loadTexture(FileSystem::getPath("resources/textures/grass_texture.png").c_str()); // Downloaded texture from https://github.com/Vulpinii/grass-tutorial_codebase/blob/master/assets/textures/grass_texture.png
+    unsigned int grassTextureDiffuse = loadTexture(FileSystem::getPath("resources/textures/grass_texture.png").c_str()); // Downloaded texture from https://github.com/Vulpinii/grass-tutorial_codebase/blob/master/assets/textures/grass_texture.png
+    unsigned int grassTextureSpecular = loadTexture(FileSystem::getPath("resources/textures/grass_texture_specular.psd").c_str());
     unsigned int planeTexture = loadTexture(FileSystem::getPath("resources/textures/plane_texture.jpg").c_str());
 
 
     grassShader.use();
-    grassShader.setInt("texture1", 0);
+    enableShaderDiffuseComponent(grassShader);
+    enableShaderSpecularComponent(grassShader);
 
     planeShader.use();
     planeShader.setInt("texture1", 0);
@@ -271,9 +323,9 @@ int main() {
     //calculating grass position
 
     vector<glm::vec3> grassPosition;
-    for(int i = 0;i < 100;i++)
-        for(int j = 0;j < 100;j++)
-            grassPosition.push_back(glm::vec3(i - 50.0f, 0.3f, j - 50.0f));
+    for(int i = 0;i < 50;i++)
+        for(int j = 0;j < 50;j++)
+            grassPosition.push_back(glm::vec3(i - 25.0f, 0.3f, j - 25.0f));
 
     // render loop
     // -----------
@@ -296,7 +348,7 @@ int main() {
 
 
         mainShader.use();
-        pointLight.position = glm::vec3(20.0, 20.0, 20.0);
+        pointLight.position = glm::vec3(10.0, 10.0, 10.0);
         bindPointLight(mainShader, pointLight);
         bindCameraPosition(mainShader, programState->camera.Position);
         bindShininess(mainShader, 32.0f);
@@ -344,8 +396,14 @@ int main() {
         //grass
         glDisable(GL_CULL_FACE);
         grassShader.use();
+        bindShininess(grassShader, 16.0f);
+        bindSpotLight(grassShader, spotLight);
+        bindDirLight(grassShader, dirLight);
         glBindVertexArray(grassVAO);
-        glBindTexture(GL_TEXTURE_2D, grassTexture);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, grassTextureDiffuse);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, grassTextureSpecular);
         projection = glm::perspective(glm::radians(programState->camera.Zoom),(float) SCR_WIDTH / (float) SCR_HEIGHT, 0.1f, 100.0f);
         view = programState->camera.GetViewMatrix();
         setShaderProjectionMatrix(grassShader, projection);
@@ -539,4 +597,32 @@ void setShaderProjectionMatrix(Shader &shader, glm::mat4 projection){
 
 void setShaderModelMatrix(Shader &shader, glm::mat4 model){
     shader.setMat4("model", model);
+}
+
+void enableShaderDiffuseComponent(Shader &shader){
+    shader.setInt("material.diffuse", 0);
+}
+
+void enableShaderSpecularComponent(Shader &shader){
+    shader.setInt("material.specular", 1);
+}
+
+void bindSpotLight(Shader &shader, SpotLight spotLight){
+    shader.setVec3("shader.position", spotLight.position);
+    shader.setVec3("shader.direction", spotLight.direction);
+    shader.setFloat("shader.cutOff", spotLight.cutOff);
+    shader.setFloat("shader.outerCutOff", spotLight.outerCutOff);
+    shader.setVec3("shader.ambient", spotLight.ambient);
+    shader.setVec3("shader.diffuse", spotLight.diffuse);
+    shader.setVec3("shader.specular", spotLight.specular);
+    shader.setFloat("shader.constant", spotLight.constant);
+    shader.setFloat("shader.linear", spotLight.linear);
+    shader.setFloat("shader.quadratic", spotLight.quadratic);
+}
+
+void bindDirLight(Shader &shader, DirLight dirLight){
+    shader.setVec3("shader.direction", dirLight.direction);
+    shader.setVec3("shader.ambient", dirLight.ambient);
+    shader.setVec3("shader.diffuse", dirLight.diffuse);
+    shader.setVec3("shader.specular", dirLight.specular);
 }
