@@ -82,6 +82,8 @@ struct ProgramState {
     glm::vec3 Position = glm::vec3(0.0f);
     float Scale = 1.0f;
     PointLight pointLight;
+    DirLight dirLight;
+    SpotLight spotLight;
     ProgramState()
             : camera(glm::vec3(0.0f, 0.0f, 3.0f)) {}
 
@@ -229,18 +231,18 @@ int main() {
     pointLight.linear = 0.09f;
     pointLight.quadratic = 0.032f;
 
-    DirLight dirLight;
+    DirLight& dirLight = programState->dirLight;
     dirLight.direction = glm::vec3(-0.2f, -1.0f, -0.3f);
     dirLight.ambient = glm::vec3(0.2f, 0.2f, 0.2f);
     dirLight.diffuse = glm::vec3(0.5f, 0.5f, 0.5f);
     dirLight.specular = glm::vec3(1.0f, 1.0f, 1.0f);
 
-    SpotLight spotLight;
-    spotLight.position = glm::vec3(20.0f, 50.0f, 20.0f);
-    spotLight.direction = glm::normalize(glm::vec3(1.0f, 0.0f, 1.0f));
+    SpotLight& spotLight = programState->spotLight;
+    spotLight.position = glm::vec3(20.0f, 10.0f, 20.0f);
+    spotLight.direction = glm::normalize(glm::vec3(-1.0f, -0.5f, -1.0f));
     spotLight.cutOff = glm::cos(glm::radians(12.5f));
     spotLight.outerCutOff = glm::cos(glm::radians(17.5f));
-    spotLight.ambient = glm::vec3(0.1, 0.1, 0.1);
+    spotLight.ambient = glm::vec3(5.0, 5.0, 5.0);
     spotLight.diffuse = glm::vec3(0.8, 0.8, 0.8);
     spotLight.specular = glm::vec3(1.0, 1.0, 1.0);
     spotLight.constant = 1.0f;
@@ -309,9 +311,8 @@ int main() {
     //loading textures
 
     unsigned int grassTextureDiffuse = loadTexture(FileSystem::getPath("resources/textures/grass_texture.png").c_str()); // Downloaded texture from https://github.com/Vulpinii/grass-tutorial_codebase/blob/master/assets/textures/grass_texture.png
-    unsigned int grassTextureSpecular = loadTexture(FileSystem::getPath("resources/textures/grass_texture_specular.psd").c_str());
+    unsigned int grassTextureSpecular = loadTexture(FileSystem::getPath("resources/textures/grass_texture_specular.png").c_str());
     unsigned int planeTexture = loadTexture(FileSystem::getPath("resources/textures/plane_texture.jpg").c_str());
-
 
     grassShader.use();
     enableShaderDiffuseComponent(grassShader);
@@ -323,9 +324,9 @@ int main() {
     //calculating grass position
 
     vector<glm::vec3> grassPosition;
-    for(int i = 0;i < 50;i++)
-        for(int j = 0;j < 50;j++)
-            grassPosition.push_back(glm::vec3(i - 25.0f, 0.3f, j - 25.0f));
+    for(int i = 0;i < 100;i++)
+        for(int j = 0;j < 100;j++)
+            grassPosition.push_back(glm::vec3(i - 50.0f, 0.3f, j - 50.0f));
 
     // render loop
     // -----------
@@ -346,23 +347,41 @@ int main() {
         glClearColor(programState->clearColor.r, programState->clearColor.g, programState->clearColor.b, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+        //view/projection initializing
+        glm::mat4 projection = glm::perspective(glm::radians(programState->camera.Zoom),(float) SCR_WIDTH / (float) SCR_HEIGHT, 0.1f, 100.0f);
+        glm::mat4 view = programState->camera.GetViewMatrix();
 
+        //setting shaders up
         mainShader.use();
-        pointLight.position = glm::vec3(10.0, 10.0, 10.0);
-        bindPointLight(mainShader, pointLight);
+        bindDirLight(mainShader, dirLight);
+        bindSpotLight(mainShader, spotLight);
         bindCameraPosition(mainShader, programState->camera.Position);
         bindShininess(mainShader, 32.0f);
 
+        grassShader.use();
+        bindDirLight(grassShader, dirLight);
+        bindSpotLight(grassShader, spotLight);
+        bindCameraPosition(grassShader, programState->camera.Position);
+        bindShininess(grassShader, 16.0f);
 
-        // view/projection transformations
-        glm::mat4 projection = glm::perspective(glm::radians(programState->camera.Zoom),(float) SCR_WIDTH / (float) SCR_HEIGHT, 0.1f, 100.0f);
-        glm::mat4 view = programState->camera.GetViewMatrix();
+
+        // view/projection settings
+        mainShader.use();
         setShaderProjectionMatrix(mainShader, projection);
         setShaderViewMatrix(mainShader, view);
+
+        grassShader.use();
+        setShaderProjectionMatrix(grassShader, projection);
+        setShaderViewMatrix(grassShader, view);
+
+        planeShader.use();
+        setShaderProjectionMatrix(planeShader, projection);
+        setShaderViewMatrix(planeShader, view);
 
         // render loaded models
 
         //goal
+        mainShader.use();
         glCullFace(GL_BACK);
         glm::mat4 model = glm::mat4(1.0f);
         model = glm::translate(model,glm::vec3(0.0f));
@@ -372,6 +391,7 @@ int main() {
         goalModel.Draw(mainShader);
 
         //projector
+        mainShader.use();
         model = glm::mat4(1.0f);
         model = glm::translate(model,glm::vec3(20.0f, 0.0f, 20.0f));
         model = glm::rotate(model, glm::radians(45.0f), glm::vec3(0, 1, 0));
@@ -384,30 +404,19 @@ int main() {
         glCullFace(GL_FRONT);
         glBindVertexArray(planeVAO);
         glBindTexture(GL_TEXTURE_2D, planeTexture);
-        projection = glm::perspective(glm::radians(programState->camera.Zoom),(float) SCR_WIDTH / (float) SCR_HEIGHT, 0.1f, 100.0f);
-        view = programState->camera.GetViewMatrix();
-        setShaderProjectionMatrix(planeShader, projection);
-        setShaderViewMatrix(planeShader, view);
         model = glm::mat4(1.0f);
-        model = glm::scale(model, glm::vec3(21.0f));
+        model = glm::scale(model, glm::vec3(51.0f));
         setShaderModelMatrix(planeShader, model);
         glDrawArrays(GL_TRIANGLES, 0, 6);
 
         //grass
-        glDisable(GL_CULL_FACE);
         grassShader.use();
-        bindShininess(grassShader, 16.0f);
-        bindSpotLight(grassShader, spotLight);
-        bindDirLight(grassShader, dirLight);
+        glDisable(GL_CULL_FACE);
         glBindVertexArray(grassVAO);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, grassTextureDiffuse);
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D, grassTextureSpecular);
-        projection = glm::perspective(glm::radians(programState->camera.Zoom),(float) SCR_WIDTH / (float) SCR_HEIGHT, 0.1f, 100.0f);
-        view = programState->camera.GetViewMatrix();
-        setShaderProjectionMatrix(grassShader, projection);
-        setShaderViewMatrix(grassShader, view);
         for(auto i : grassPosition){
             model = glm::mat4(1.0f);
             model = glm::translate(model, i);
@@ -600,29 +609,29 @@ void setShaderModelMatrix(Shader &shader, glm::mat4 model){
 }
 
 void enableShaderDiffuseComponent(Shader &shader){
-    shader.setInt("material.diffuse", 0);
+    shader.setInt("material.texture_diffuse1", 0);
 }
 
 void enableShaderSpecularComponent(Shader &shader){
-    shader.setInt("material.specular", 1);
+    shader.setInt("material.texture_specular1", 1);
 }
 
 void bindSpotLight(Shader &shader, SpotLight spotLight){
-    shader.setVec3("shader.position", spotLight.position);
-    shader.setVec3("shader.direction", spotLight.direction);
-    shader.setFloat("shader.cutOff", spotLight.cutOff);
-    shader.setFloat("shader.outerCutOff", spotLight.outerCutOff);
-    shader.setVec3("shader.ambient", spotLight.ambient);
-    shader.setVec3("shader.diffuse", spotLight.diffuse);
-    shader.setVec3("shader.specular", spotLight.specular);
-    shader.setFloat("shader.constant", spotLight.constant);
-    shader.setFloat("shader.linear", spotLight.linear);
-    shader.setFloat("shader.quadratic", spotLight.quadratic);
+    shader.setVec3("spotLight.position", spotLight.position);
+    shader.setVec3("spotLight.direction", spotLight.direction);
+    shader.setFloat("spotLight.cutOff", spotLight.cutOff);
+    shader.setFloat("spotLight.outerCutOff", spotLight.outerCutOff);
+    shader.setVec3("spotLight.ambient", spotLight.ambient);
+    shader.setVec3("spotLight.diffuse", spotLight.diffuse);
+    shader.setVec3("spotLight.specular", spotLight.specular);
+    shader.setFloat("spotLight.constant", spotLight.constant);
+    shader.setFloat("spotLight.linear", spotLight.linear);
+    shader.setFloat("spotLight.quadratic", spotLight.quadratic);
 }
 
 void bindDirLight(Shader &shader, DirLight dirLight){
-    shader.setVec3("shader.direction", dirLight.direction);
-    shader.setVec3("shader.ambient", dirLight.ambient);
-    shader.setVec3("shader.diffuse", dirLight.diffuse);
-    shader.setVec3("shader.specular", dirLight.specular);
+    shader.setVec3("dirLight.direction", dirLight.direction);
+    shader.setVec3("dirLight.ambient", dirLight.ambient);
+    shader.setVec3("dirLight.diffuse", dirLight.diffuse);
+    shader.setVec3("dirLight.specular", dirLight.specular);
 }
