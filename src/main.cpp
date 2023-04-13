@@ -80,7 +80,7 @@ struct ProgramState {
     Camera camera;
     bool CameraMouseMovementUpdateEnabled = true;
     glm::vec3 Position = glm::vec3(0.0f);
-    float Scale = 1.0f;
+    bool AntiAliasing = true;
     PointLight pointLight;
     DirLight dirLight;
     SpotLight spotLight;
@@ -155,6 +155,8 @@ int main() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_SAMPLES, 4);
+
 
 #ifdef __APPLE__
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
@@ -198,15 +200,17 @@ int main() {
     ImGuiIO &io = ImGui::GetIO();
     (void) io;
 
-
-
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 330 core");
 
     // configure global opengl state
     // -----------------------------
+
+
+
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
+    glEnable(GL_MULTISAMPLE);
 
     // build and compile shaders
     // -------------------------
@@ -341,6 +345,10 @@ int main() {
         // -----
         processInput(window);
 
+        if(programState->AntiAliasing)
+            glEnable(GL_MULTISAMPLE);
+        else
+            glDisable(GL_MULTISAMPLE);
 
         // render
         // ------
@@ -501,13 +509,8 @@ void DrawImGui(ProgramState *programState) {
 
 
     {
-        static float f = 0.0f;
-        ImGui::Begin("Hello window");
-        ImGui::Text("Hello text");
-        ImGui::SliderFloat("Float slider", &f, 0.0, 1.0);
-        ImGui::ColorEdit3("Background color", (float *) &programState->clearColor);
-        ImGui::DragFloat3("Backpack position", (float*)&programState->Position);
-        ImGui::DragFloat("Backpack scale", &programState->Scale, 0.05, 0.1, 4.0);
+        ImGui::Begin("Enable anti-aliasing");
+        ImGui::Checkbox("Anti-aliasing", &programState->AntiAliasing);
 
         ImGui::DragFloat("pointLight.constant", &programState->pointLight.constant, 0.05, 0.0, 1.0);
         ImGui::DragFloat("pointLight.linear", &programState->pointLight.linear, 0.05, 0.0, 1.0);

@@ -1,4 +1,4 @@
-/snap/clion/233/bin/cmake/linux/x64/bin/cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_MAKE_PROGRAM=/snap/clion/233/bin/ninja/linux/x64/ninja -G Ninja -S /home/stefan/Desktop/Projekat -B /home/stefan/Desktop/Projekat/cmake-build-debug
+/snap/clion/234/bin/cmake/linux/x64/bin/cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_MAKE_PROGRAM=/snap/clion/234/bin/ninja/linux/x64/ninja -G Ninja -S /home/stefan/Desktop/Projekat -B /home/stefan/Desktop/Projekat/cmake-build-debug
 -- The C compiler identification is GNU 12.2.0
 -- The CXX compiler identification is GNU 12.2.0
 -- Detecting C compiler ABI info
