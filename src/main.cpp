@@ -227,31 +227,31 @@ int main() {
     projectorModel.SetShaderTextureNamePrefix("material.");
 
     PointLight& pointLight = programState->pointLight;
-    pointLight.position = glm::vec3(1.0f, 4.0, 0.0);
-    pointLight.ambient = glm::vec3(2.0, 2.0, 2.0);
-    pointLight.diffuse = glm::vec3(0.8, 0.8, 0.8);
-    pointLight.specular = glm::vec3(0.1, 0.1, 0.1);
+    pointLight.position = glm::vec3(18.0f, 21.5f, 18.0f);
+    pointLight.ambient = glm::vec3(10.1, 10.1, 10.1);
+    pointLight.diffuse = glm::vec3(0.2, 0.2, 0.2);
+    pointLight.specular = glm::vec3(1.1, 1.1, 1.1);
     pointLight.constant = 1.0f;
-    pointLight.linear = 0.09f;
-    pointLight.quadratic = 0.032f;
+    pointLight.linear = 0.8f;
+    pointLight.quadratic = 0.7f;
 
     DirLight& dirLight = programState->dirLight;
-    dirLight.direction = glm::vec3(-0.2f, -1.0f, -0.3f);
+    dirLight.direction = glm::vec3(0.2f, -1.0f, 0.3f);
     dirLight.ambient = glm::vec3(0.2f, 0.2f, 0.2f);
     dirLight.diffuse = glm::vec3(0.5f, 0.5f, 0.5f);
     dirLight.specular = glm::vec3(1.0f, 1.0f, 1.0f);
 
     SpotLight& spotLight = programState->spotLight;
-    spotLight.position = glm::vec3(20.0f, 10.0f, 20.0f);
-    spotLight.direction = glm::normalize(glm::vec3(-1.0f, -0.5f, -1.0f));
+    spotLight.position = glm::vec3(20.0f, 22.0f, 20.0f);
+    spotLight.direction = glm::normalize(glm::vec3(-1.0f, -1.0f, -1.0f));
     spotLight.cutOff = glm::cos(glm::radians(12.5f));
     spotLight.outerCutOff = glm::cos(glm::radians(17.5f));
-    spotLight.ambient = glm::vec3(5.0, 5.0, 5.0);
-    spotLight.diffuse = glm::vec3(0.8, 0.8, 0.8);
-    spotLight.specular = glm::vec3(1.0, 1.0, 1.0);
+    spotLight.ambient = glm::vec3(1.0, 1.0, 1.0);
+    spotLight.diffuse = glm::vec3(10.0, 10.0, 10.0);
+    spotLight.specular = glm::vec3(0.2, 0.2, 0.2);
     spotLight.constant = 1.0f;
-    spotLight.linear = 0.09f;
-    spotLight.quadratic = 0.032f;
+    spotLight.linear = 0.045f;
+    spotLight.quadratic = 0.016f;
 
 
     //initializing vertices
@@ -363,12 +363,14 @@ int main() {
         mainShader.use();
         bindDirLight(mainShader, dirLight);
         bindSpotLight(mainShader, spotLight);
+        bindPointLight(mainShader, pointLight);
         bindCameraPosition(mainShader, programState->camera.Position);
         bindShininess(mainShader, 32.0f);
 
         grassShader.use();
         bindDirLight(grassShader, dirLight);
         bindSpotLight(grassShader, spotLight);
+        bindPointLight(grassShader, pointLight);
         bindCameraPosition(grassShader, programState->camera.Position);
         bindShininess(grassShader, 16.0f);
 
@@ -512,9 +514,6 @@ void DrawImGui(ProgramState *programState) {
         ImGui::Begin("Enable anti-aliasing");
         ImGui::Checkbox("Anti-aliasing", &programState->AntiAliasing);
 
-        ImGui::DragFloat("pointLight.constant", &programState->pointLight.constant, 0.05, 0.0, 1.0);
-        ImGui::DragFloat("pointLight.linear", &programState->pointLight.linear, 0.05, 0.0, 1.0);
-        ImGui::DragFloat("pointLight.quadratic", &programState->pointLight.quadratic, 0.05, 0.0, 1.0);
         ImGui::End();
     }
 
