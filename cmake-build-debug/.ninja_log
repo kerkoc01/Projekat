@@ -75,3 +75,13 @@
 2309	2398	1681596498871522822	/home/stefan/Desktop/Projekat/project_base	f72b57f401b79d03
 0	2303	1681684250557298645	CMakeFiles/project_base.dir/src/main.cpp.o	c50250f680df4056
 2307	2399	1681684250653301503	/home/stefan/Desktop/Projekat/project_base	f72b57f401b79d03
+69	5244	1683910867704710179	CMakeFiles/project_base.dir/src/main.cpp.o	c50250f680df4056
+43	6619	1683910869076762342	CMakeFiles/STB_IMAGE.dir/libs/stb_image.cpp.o	bc23c045f36b1a5f
+6619	6991	1683910869452776638	libSTB_IMAGE.a	eddd7a485ca1359b
+5244	7875	1683910870336810247	libs/imgui/CMakeFiles/imgui.dir/src/imgui_demo.cpp.o	dcd767b6c006c13a
+69	7880	1683910870336810247	libs/imgui/CMakeFiles/imgui.dir/src/imgui.cpp.o	27bfcfbe86f2b909
+7876	9505	1683910871964872144	libs/imgui/CMakeFiles/imgui.dir/src/imgui_tables.cpp.o	2f658c594f920d33
+6991	10469	1683910872924908644	libs/imgui/CMakeFiles/imgui.dir/src/imgui_draw.cpp.o	4b6ba90121d2135b
+7880	12118	1683910874576971455	libs/imgui/CMakeFiles/imgui.dir/src/imgui_widgets.cpp.o	2d22b02c1fd60753
+12118	12282	1683910874724977082	libs/imgui/libimgui.a	33889c042e0dea69
+12282	12817	1683910875276998069	/home/stefan/Desktop/Projekat/project_base	f72b57f401b79d03
