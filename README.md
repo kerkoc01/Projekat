@@ -1,6 +1,6 @@
 # Projekat iz RG
 
-[Video](https://youtu.be/MjUI11nUBos)
+[Video](https://youtu.be/v2mSqdEwfpg)
 
 Scene containing a goalpost, a reflector and a lot of grass
 It was made in C++ using OpenGL, GLFW and GLAD. It contains:
